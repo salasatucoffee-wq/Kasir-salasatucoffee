@@ -1,0 +1,6 @@
+{
+  "appId": "id.salasatucoffee.kasir",
+  "appName": "Salasatu Kasir",
+  "webDir": "www",
+  "android": { "backgroundColor": "#1E1511" }
+}
