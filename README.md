@@ -1,2 +1,0 @@
-# Kasir-salasatucoffee
-Kasir salasatucoffee
