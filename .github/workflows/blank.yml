@@ -1,0 +1,91 @@
+
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Salasatu Kasir APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "SDK Manager tidak ditemukan"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses
+
+          "$SDKMANAGER" --install \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prepare PDF libraries
+        run: |
+          cp node_modules/jspdf/dist/jspdf.umd.min.js www/
+          cp node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js www/
+
+      - name: Check application files
+        run: |
+          test -f www/index.html
+          test -f capacitor.config.json
+          test -f patch-android.py
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Configure Android
+        run: python3 patch-android.py
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: salasatu-kasir-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
